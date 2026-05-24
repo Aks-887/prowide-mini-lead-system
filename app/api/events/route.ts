@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             console.error('Stream write error:', error);
           }
         },
-        on: (event: string, callback: Function) => {
+        on: (_event: string, _callback: Function) => {
           // This will be called by subscribeProvider for cleanup
           if (event === 'close') {
             // Cleanup on close
