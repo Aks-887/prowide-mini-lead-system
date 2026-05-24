@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  leads     Lead[]
+  allocationPointers AllocationPointer[]
+  allocationCursors  ServiceAllocationCursor[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Provider {
+  id                  Int     @id @default(autoincrement())
+  name                String  @unique
+  monthlyQuota        Int     @default(10)
+  leadsReceivedCount  Int     @default(0)
+  leads               LeadAssignment[]
+  quotaResetHistory   QuotaResetHistory[]
+  allocationPointers  AllocationPointer[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([leadsReceivedCount])
+}
+
+model Lead {
+  id                   String   @id @default(cuid())
+  serviceId            Int
+  service              Service  @relation(fields: [serviceId], references: [id])
+  phone                String
+  name                 String
+  city                 String
+  description          String
+  assignments          LeadAssignment[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([phone, serviceId], name: "unique_phone_service")
+  @@index([phone])
+  @@index([serviceId])
+}
+
+model LeadAssignment {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  providerId Int
+  provider  Provider @relation(fields: [providerId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([leadId, providerId])
+  @@index([leadId])
+  @@index([providerId])
+}
+
+model AllocationPointer {
+  id        Int      @id @default(autoincrement())
+  providerId Int
+  provider  Provider @relation(fields: [providerId], references: [id])
+  serviceId Int
+  service   Service  @relation(fields: [serviceId], references: [id])
+  lastIndex Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([providerId, serviceId])
+  @@index([serviceId])
+}
+
+model ServiceAllocationCursor {
+  id        Int      @id @default(autoincrement())
+  serviceId Int
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  // Persisted round-robin cursor for the pool of remaining providers
+  nextOffset Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceId])
+}
+
+model QuotaResetHistory {
+  id        String   @id @default(cuid())
+  providerId Int
+  provider  Provider @relation(fields: [providerId], references: [id])
+  timestamp DateTime @default(now())
+
+  @@index([providerId])
+  @@index([timestamp])
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  providerId Int
+  eventType String   // "quota_reset"
+  idempotencyKey String @unique
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([idempotencyKey])
+}
+
