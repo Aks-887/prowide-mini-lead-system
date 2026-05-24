@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
         },
         on: (_event: string, _callback: Function) => {
           // This will be called by subscribeProvider for cleanup
-          if (event === 'close') {
+          if (_event === 'close') {
             // Cleanup on close
             controller.close();
-          } else if (event === 'error') {
+          } else if (_event === 'error') {
             // Handle errors
           }
         },
